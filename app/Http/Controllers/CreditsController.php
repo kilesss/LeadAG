@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\MakePayment;
 use App\Http\Requests\SubmitCredit;
 use App\Models\CreditsModel;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 
 class CreditsController extends Controller
 {
@@ -12,12 +14,12 @@ class CreditsController extends Controller
     public function submitCredit(SubmitCredit $request)
     {
         $currentCreditAmount = 0;
-        $allCreditsAmount = CreditsModel::all('amount','interest_amount');
+        $allCreditsAmount = CreditsModel::all('amount', 'interest_amount');
         foreach ($allCreditsAmount as $key => $value) {
             $currentCreditAmount += $value->amount;
             $currentCreditAmount += $value->interest_amount;
         }
-        if ($currentCreditAmount >= config('creditConfiguration.max_credits_amount')){
+        if ($currentCreditAmount >= config('creditConfiguration.max_credits_amount')) {
             $err ['errors']['single_error'] = 'Sorry, you you exceed the maximum amount.';
             return response()->json($err, 422);
         }
@@ -57,15 +59,23 @@ class CreditsController extends Controller
     {
         $creditModel = CreditsModel::find($request->input('credit'));
         $currentAmount = $creditModel->amount;
-
-        $creditModel->amount = $creditModel->amount - $request->input('amount');
-        if ($creditModel->amount<=0){
-            $overPay = $request->input('amount')-$currentAmount;
-            $creditModel->delete();
-            $err ['overpay'] = 'You overpay '.$overPay.'. This amount will be returned';
+        $userAmount = User::find(Auth::user()->id)->first();
+        if ($userAmount->wallet < $request->input('amount')) {
+            $err ['errors']['single_error'] = 'You don`t have enough money in your wallet to make payment.';
             return response()->json($err, 422);
-
-        }else{
+        }
+        $creditModel->amount = $creditModel->amount - $request->input('amount');
+        $user = User::where('id', Auth::user()->id);
+        if ($creditModel->amount <= 0) {
+            $overPay = $request->input('amount') - $currentAmount;
+            $creditModel->delete();
+            $err ['overpay'] = 'You overpay ' . $overPay . '. This amount will be returned';
+            //in this case charge user the rest of the credit amount
+            $user->update(['wallet' => $userAmount->wallet - $creditModel->amount]);
+            return response()->json($err, 422);
+        } else {
+            //in this case charge user full amount
+            $user->update(['wallet' => $userAmount->wallet - $request->input('amount')]);
             $creditModel->save();
             return response()->json([], 200);
         }

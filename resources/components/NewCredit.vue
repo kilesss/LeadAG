@@ -61,11 +61,11 @@ export default {
                 // this.databaseConfiguration = response.data;
                 router.push({ path: '/' })
             }).catch(error =>{
-                if (error.response.data.errors.single_error !== undefined){
+                if (error.response.data.errors.single_error !== undefined) {
                     let err = [];
-                    err.push({'error':error.response.data.errors.single_error })
-                    this.errors =err;
-                }else{
+                    err.push({'error': error.response.data.errors.single_error})
+                    this.errors = err;
+                } else {
                     this.errors = error.response.data.errors
                 }
             })

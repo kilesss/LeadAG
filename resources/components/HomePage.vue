@@ -128,6 +128,7 @@ export default {
         },
         makePayment(id) {
             this.currentPaymentId = id;
+            this.amount = ''
             //maybe its not perfect solution but i can`t find better
             $('#makePayment').modal('show');
 
@@ -151,6 +152,10 @@ export default {
                     this.overpay = error.response.data.overpay;
                     $('#overpay').modal('show');
 
+                } else if (error.response.data.errors.single_error !== undefined) {
+                    let err = [];
+                    err.push({'error': error.response.data.errors.single_error})
+                    this.errors = err;
                 } else {
                     this.errors = error.response.data.errors
                 }
